@@ -1,39 +1,31 @@
+import streamlit as st
 import pandas as pd
 import plotly.express as px
-import streamlit as st
 
-st.title("Sunburst: Field of Study and SAT Score Percentile Levels")
+st.set_page_config(page_title="Sunburst Chart", layout="centered")
 
-uploaded_file = st.file_uploader("Upload Excel File", type=["xlsx"])
-if uploaded_file is not None:
-    df = pd.read_excel(uploaded_file, sheet_name="education_career_success")
+st.title("📊 Sunburst Chart: Field → SAT → GPA → Job Offers")
 
-    # Tính các mốc phần trăm
-    low = df['SAT_Score'].quantile(0.33)
-    high = df['SAT_Score'].quantile(0.66)
+# Đọc dữ liệu
+df = pd.read_excel("education_career_success.xlsx")
 
-    # Phân loại SAT Score theo phần trăm
-    def sat_percentile(score):
-        if score <= low:
-            return 'Thấp (<= 33%)'
-        elif score <= high:
-            return 'Trung bình (33%-66%)'
-        else:
-            return 'Cao (> 66%)'
+# Nhóm điểm SAT
+sat_bins = [0, 1000, 1200, 1400, 1600]
+sat_labels = ["<1000", "1000–1199", "1200–1399", "1400+"]
+df["SAT_Band"] = pd.cut(df["SAT_Score"], bins=sat_bins, labels=sat_labels)
 
-    df['SAT_Level'] = df['SAT_Score'].apply(sat_percentile)
+# Nhóm GPA
+gpa_bins = [0, 2.5, 3.0, 3.5, 4.0]
+gpa_labels = ["<2.5", "2.5–3.0", "3.0–3.5", "3.5–4.0"]
+df["GPA_Band"] = pd.cut(df["University_GPA"], bins=gpa_bins, labels=gpa_labels)
 
-    # Nhóm dữ liệu
-    grouped = df.groupby(['Field_of_Study', 'SAT_Level']).size().reset_index(name='Count')
+# Tạo biểu đồ sunburst
+fig = px.sunburst(
+    df,
+    path=["Field_of_Study", "SAT_Band", "GPA_Band"],
+    values="Job_Offers",
+    title="Field of Study → SAT Band → GPA Band → Job Offers"
+)
+fig.update_traces(textinfo="label+percent parent")
 
-    # Vẽ sunburst
-    fig = px.sunburst(
-        grouped,
-        path=['Field_of_Study', 'SAT_Level'],
-        values='Count',
-        title='Phân loại SAT Score theo phần trăm trong từng ngành học',
-        color='Count',
-        color_continuous_scale='YlGnBu'
-    )
-
-    st.plotly_chart(fig)
+st.plotly_chart(fig, use_container_width=True)
